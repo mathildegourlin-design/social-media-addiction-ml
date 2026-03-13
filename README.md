@@ -15,9 +15,11 @@ Build machine learning models to predict social media addiction scores based on 
 
 ## Models Used
 - Linear Regression
+- Interaction Linear Model
 - K-Nearest Neighbors
 - Ridge Regression
 - Lasso Regression
+- Pruned Regression Tree
 
 ## Tools
 - R
