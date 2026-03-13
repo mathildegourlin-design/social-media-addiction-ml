@@ -1,0 +1,1005 @@
+---
+title: "Predicting Social Media Addiction Severity Using Behavioral and Mental Health Indicators"
+author: "Mathilde Gourlin"
+date: "2026-03-15"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: false
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  fig.width = 8,
+  fig.height = 5,
+  dpi = 300,
+  fig.retina = 2
+)
+library(tidyverse)
+library(ggplot2)
+library(tidyverse)
+library(ggplot2)
+library(wesanderson)
+
+gb_palette <- wes_palette("GrandBudapest2")
+
+theme_set(
+  theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(face = "bold", size = 16),
+      axis.title = element_text(face = "bold"),
+      axis.text = element_text(size = 12),
+      panel.grid.minor = element_blank(),
+      plot.title.position = "plot"
+    )
+)
+```
+
+
+
+```{r echo=FALSE, fig.align="center", out.width="60%"}
+knitr::include_graphics("social_media.png")
+
+```
+
+## Introduction
+
+Social media has become one of the most influential forces shaping modern society Platforms such as Instagram, TikTok, Snapchat, and Twitter play a central role in communication and daily routines, particularly for students and young adults. While these platforms offer connection and creativity, there is growing concern about the consequences of excessive use. Research increasingly links heavy engagement to sleep disruption, declining academic performance, anxiety, and compulsive behavior.
+
+The motivation for this project is both personal and academic. As a college student who uses social media daily, I have observed how digital platforms shape habits and emotions. I am also planning to pursue a career in marketing, an industry that relies heavily on social media to influence behavior and capture attention. Therefore, I believe it is important not only to understand how these platforms engage users, but also how they may contribute to unhealthy patterns of use.
+
+This project investigates whether the severity of social media addiction, measured by the variable Addicted_Score, can be predicted using demographic, behavioral, and psychological characteristics. Since the response variable is continuous, the analysis is framed as a supervised regression problem. The objective is to determine which variables are most strongly associated with addiction severity and how accurately addiction scores can be predicted.
+
+Rather than treating social media addiction as a purely theoretical concern, this analysis approaches it as a measurable outcome. By applying statistical modeling techniques, the goal is to identify patterns in usage behavior and well being that contribute to higher addiction severity. Understanding these relationships can help clarify which factors are most predictive and whether addiction severity follows primarily linear or nonlinear patterns.
+
+
+### Data Selection and Relevance
+
+The dataset used in this project consists of survey responses from students regarding their social media usage patterns, mental health, and lifestyle characteristics. The file addiction.csv was obtained from Kaggle and includes both behavioral measures of social media engagement and psychological indicators of well being. This combination allows for a meaningful investigation of how digital behavior relates to addiction severity. The dataset can be accessed at: https://www.kaggle.com/datasets/adilshamim8/social-media-addiction-vs-relationships.The dataset contains responses from 705 individuals, providing sufficient observations to explore relationships between social media usage behavior and addiction severity.
+
+The response variable, Addicted_Score, is a numeric scale ranging from 1 to 10 intended to measure the severity of social media addiction among students. Having a numerical outcome allows regression techniques to model variation in addiction levels rather than simply classifying individuals as addicted or not addicted.
+
+Predictors in the dataset include demographic characteristics such as age and academic level, behavioral measures such as average daily usage hours and most used platform, and well being indicators such as mental health score and sleep duration. Together, these variables make it possible to evaluate whether addiction severity is primarily driven by time spent online, psychological factors, or a combination of influences.
+
+Dataset source: Kaggle.
+Social Media Addiction Dataset. Retrieved from: https://www.kaggle.com/datasets/adilshamim8/social-media-addiction-vs-relationships
+
+
+### Project Objectives
+
+This project is guided by four primary objectives:
+
+1. To explore the distribution of Addicted_Score and examine relationships between addiction severity and key predictors.
+
+2. To identify which demographic, behavioral, and psychological variables contribute most strongly to addiction severity.
+
+3. To compare multiple regression based machine learning models using cross validation.
+
+4. To evaluate the final selected model on a test set and interpret the quality of its predictions.
+
+By combining personal motivation with statistical analysis, this project aims to provide a data driven investigation into how social media usage patterns relate to addiction severity.
+
+```{r echo=FALSE, fig.align="center", out.width="60%"}
+knitr::include_graphics("sunset.png")
+```
+
+### Dataset Overview
+
+The dataset used in this project consists of survey responses from students regarding their social media usage patterns, mental health, and lifestyle characteristics.
+
+Response Variable
+
+The primary variable of interest is:
+
+Addicted_Score: A continuous numerical score intended to quantify an individual’s social media addiction.This variable will serve as the target outcome for all models in this project.
+
+Predictor Variables
+
+The dataset contains 11 potential predictors, which can be grouped into four broad categories:
+
+**Demographic Variables**
+
+- Age  
+- Gender  
+- Academic_Level  
+- Country  
+
+**Behavioral Variables**
+
+- Avg_Daily_Usage_Hours  
+- Most_Used_Platform  
+
+**Psychological and Well-being Variables**
+
+- Mental_Health_Score  
+- Sleep_Hours_Per_Night  
+
+**Social and Academic Impact Variables**
+
+- Conflicts_Over_Social_Media  
+- Affects_Academic_Performance  
+- Relationship_Status  
+
+The dataset also includes a **Student_ID** variable used only as a unique identifier. This variable is removed during preprocessing because it does not contain predictive information.
+
+These variables collectively capture different dimensions of an individual’s digital behavior and personal context, making them plausible predictors of addiction severity.
+
+### Loading and Inspecting the Data
+Before building predictive models, it is important to first understand the structure and characteristics of the data. The dataset contains both numerical and categorical variables, requiring careful preprocessing prior to modeling.
+
+```{r}
+data <- read.csv("addiction.csv")
+
+dim(data)
+
+names(data)
+
+str(data)
+
+summary(data)
+```
+The summary statistics show that Addicted_Score ranges from 2 to 9, with a mean of approximately 6.4, suggesting moderate to high levels of social media addiction among many respondents. Average daily usage is centered around 4.9 hours per day, while sleep duration averages just under 7 hours per night, indicating potential tradeoffs between online activity and sleep.
+
+### Data Cleaning and Preparation
+Remove Non-Predictive Columns
+
+The variable Student_ID is simply an identifier and should not be used as a predictor.
+```{r}
+data1 <- data %>% select(-Student_ID)
+
+colSums(is.na(data))
+
+
+```
+Before fitting any models, the dataset was checked for missing values. No missing values were found among the variables used in the analysis. Because the dataset was complete, no imputation or removal of observations was necessary. This ensured that all available data could be used during model training and evaluation.
+
+Several variables are categorical and must be treated as factors for modeling:
+
+```{r}
+data <- data1 %>%
+  mutate(
+    Gender = as.factor(Gender),
+    Academic_Level = as.factor(Academic_Level),
+    Country = as.factor(Country),
+    Most_Used_Platform = as.factor(Most_Used_Platform),
+    Affects_Academic_Performance = as.factor(Affects_Academic_Performance),
+    Relationship_Status = as.factor(Relationship_Status)
+  )
+
+data
+```
+
+
+## Exploratory Data Analysis (EDA)
+
+In this section, I explore the distribution of `Addicted_Score` and examine relationships between addiction severity and several key predictors. The goal is to understand patterns in the data that may inform model choice and feature importance.
+
+I focus on four guiding questions:
+
+1. What does the distribution of `Addicted_Score` look like?
+2. How is addiction severity related to daily usage?
+3. How is addiction severity related to mental health and sleep?
+4. Do addiction scores differ across common social media platforms?
+
+Now, I will explore the relationships between select variables with the outcome as with each other.
+
+### Distribution of Addiction Severity
+
+I begin by examining the distribution of the response variable, `Addicted_Score`, to understand the overall range and whether scores cluster at certain values.
+
+```{r}
+ggplot(data, aes(x = Addicted_Score)) +
+  geom_histogram(
+    fill = gb_palette[1],
+    color = "white",
+    bins = 12
+  ) +
+  labs(
+    title = "Distribution of Social Media Addiction Scores",
+    x = "Addiction Score",
+    y = "Count"
+  )
+
+```
+This visualization allows us to assess whether the response variable is approximately normally distributed or skewed, which may influence modeling decisions. The distribution of Addicted_Score appears approximately unimodal, with most observations concentrated between scores of 5 and 8. This suggests that moderate to high levels of social media addiction are common within the sample. The absence of extreme skewness indicates that linear regression is an appropriate modeling choice for this response variable. Because Addicted_Score is recorded on a 1–10 scale, it is technically discrete, but it behaves like a continuous severity measure, which supports using regression-based models.
+
+
+
+### Relationship between daily usage and addiction score
+
+Next, I examine whether students who spend more time on social media each day tend to have higher addiction severity.
+
+
+```{r}
+ggplot(data, aes(x = Avg_Daily_Usage_Hours, y = Addicted_Score)) +
+  geom_point(
+    color = gb_palette[2],
+    alpha = 0.6,
+    size = 2
+  ) +
+  geom_smooth(
+    method = "lm",
+    color = gb_palette[1],
+    linewidth = 1.2,
+    se = FALSE
+  ) +
+  labs(
+    title = "Daily Social Media Usage and Addiction Score",
+    x = "Average Daily Usage (Hours)",
+    y = "Addicted Score"
+  )
+```
+A positive relationship is expected, individuals who spend more time on social media each day are likely to have higher addiction scores. This scatterplot reveals a clear positive relationship between average daily social media usage and addiction severity. As daily usage hours increase, Addicted_Score tends to rise as well. This pattern aligns with expectations, as increased exposure to social media platforms may reinforce habitual or compulsive behaviors. The strength and consistency of this relationship suggest that Avg_Daily_Usage_Hours will be a highly informative predictor in regression models. The trend appears approximately linear with no obvious threshold effect, which supports including Avg_Daily_Usage_Hours as a linear term in baseline models.
+
+### Mental health and addiction severity
+
+Because addiction and well-being may be connected, I explore the relationship between `Mental_Health_Score` and `Addicted_Score`.
+
+```{r}
+ggplot(data, aes(x = Mental_Health_Score, y = Addicted_Score)) +
+  geom_point(
+    color = gb_palette[4],
+    alpha = 0.6,
+    size = 2
+  ) +
+  geom_smooth(
+    method = "lm",
+    color = gb_palette[1],
+    linewidth = 1.2,
+    se = FALSE
+  ) +
+  labs(
+    title = "Mental Health and Social Media Addiction",
+    x = "Mental Health Score",
+    y = "Addicted Score"
+  )
+```
+This analysis helps determine whether poorer mental health is associated with higher addiction severity. A negative relationship is observed between Mental_Health_Score and Addicted_Score, indicating that individuals with poorer mental health tend to report higher addiction severity. This finding supports existing concerns that social media addiction and mental health are closely intertwined. The linear nature of this relationship further supports the use of regression modeling and highlights mental health as a critical predictor of addiction outcomes. The relationship also appears approximately linear, suggesting that a simple regression structure may capture much of the signal before trying more flexible models.
+
+
+### Addiction score by most-used platform
+
+Platform design and interaction style differ across apps, so I compare addiction scores across students’ most-used platforms. To avoid unstable conclusions from very small groups, I restrict the comparison to platforms with at least 30 observations.
+
+```{r}
+platform_counts <- data %>%
+  count(Most_Used_Platform, sort = TRUE)
+
+platform_counts %>%
+  slice(1:10)
+
+```
+
+This table shows which platforms have sufficient sample size for stable comparisons, motivating the n ≥ 30 filter used for the boxplot.
+
+```{r}
+common_platforms <- data %>%
+  count(Most_Used_Platform) %>%
+  filter(n >= 30) %>%
+  pull(Most_Used_Platform)
+
+data_platform_plot <- data %>%
+  filter(Most_Used_Platform %in% common_platforms)
+
+
+
+ggplot(data_platform_plot,
+       aes(x = reorder(Most_Used_Platform, Addicted_Score, median),
+           y = Addicted_Score)) +
+  geom_boxplot(
+    fill = gb_palette[4],
+    alpha = 0.8
+  ) +
+  coord_flip() +
+  labs(
+    title = "Addiction Score by Most Used Platform",
+    x = "Most Used Platform",
+    y = "Addicted Score"
+  )
+
+
+```
+To ensure meaningful comparison across platforms, the analysis was restricted to social media platforms with a sufficient number of observations. This avoids overinterpreting categories with very small sample sizes and improves the clarity of the visualization. The resulting boxplot reveals noticeable differences in addiction severity across commonly used platforms. TikTok and Instagram have higher median addiction scores and relatively wide distributions, suggesting more habitual usage patterns on these platforms. In contrast, Facebook and Twitter show lower median addiction scores and greater variability, indicating more heterogeneous usage behaviors. WhatsApp displays a relatively high median score with a narrower distribution, suggesting consistent but potentially less extreme usage patterns.These differences motivated the inclusion of Most_Used_Platform as a categorical predictor in the regression models. The visualization suggests that platform type captures behavioral differences that are not fully explained by time spent on social media alone.
+
+
+```{r}
+numeric_data <- data %>% select(where(is.numeric))
+
+cor(numeric_data)
+```
+
+### Relationships among numeric variables
+
+Finally, I explore the overall relationships between all of the continuous variables using a correlation plot.
+
+
+```{r}
+library(tidyr)
+library(ggplot2)
+
+cor_mat <- cor(numeric_data, use = "complete.obs")
+
+
+cor_df <- as.data.frame(cor_mat) %>%
+  rownames_to_column("var1") %>%
+  pivot_longer(-var1, names_to = "var2", values_to = "correlation")
+
+ggplot(cor_df, aes(x = var1, y = var2, fill = correlation)) +
+  geom_tile(color = "white", linewidth = 0.6) +
+  geom_text(aes(label = round(correlation, 2)), size = 3) +
+  coord_fixed() +
+  scale_fill_gradient2(
+    low = wes_palette("GrandBudapest2")[1],
+    mid = "white",
+    high = wes_palette("GrandBudapest2")[4],
+    midpoint = 0,
+    limits = c(-1,1)
+  ) +
+  labs(
+    title = "Correlation Heatmap of Numeric Variables",
+    x = NULL,
+    y = NULL,
+    fill = "Correlation"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_text(angle = 35, hjust = 1),
+    plot.title = element_text(face = "bold", size = 16),
+    panel.grid = element_blank()
+  )
+```
+The correlation heatmap highlights several notable relationships among the numeric variables. One relationship that stands out is the positive correlation between average daily usage hours and Addicted_Score, indicating that individuals who spend more time on social media tend to report higher levels of addiction severity. This pattern aligns with expectations, as heavier engagement with social media platforms may reinforce compulsive usage behavior.
+
+Another clear relationship appears between sleep hours per night and Addicted_Score, which shows a negative correlation. This suggests that individuals with higher addiction scores tend to report fewer hours of sleep. This relationship is consistent with concerns that excessive social media use may interfere with healthy sleep habits.
+
+Overall, the heatmap suggests that behavioral factors such as daily usage time and sleep habits are meaningfully associated with addiction severity, making them plausible predictors for the regression models used later in the analysis. Importantly, the correlations among predictors do not appear extremely high, suggesting that severe multicollinearity is unlikely to pose a major problem for the linear models considered in this project.
+
+**Summary of Exploratory Findings**
+
+The exploratory data analysis revealed several strong relationships between social media behavior, mental health, and addiction severity. Variables such as average daily usage hours, mental health score, sleep duration, and social conflicts consistently demonstrated meaningful associations with Addicted_Score. These findings motivated the selection of predictors used in the regression models that follow. By grounding model construction in exploratory insights, the analysis aims to balance interpretability with predictive performance.
+
+## Modeling Framework
+
+**Data Splitting and Preprocessing**
+Before fitting any predictive models, the data must first be split into a training set and a testing set. The training set will be used to train and tune the models, while the testing set will be reserved for evaluating the final model’s performance on new, unseen data. By separating the data in this way, we avoid overfitting because the model does not learn from all available observations.
+
+```{r}
+library(tidymodels)
+
+```
+
+```{r}
+set.seed(123)
+
+addiction_split <- initial_split(
+  data,
+  prop = 0.8,
+  strata = Addicted_Score
+)
+
+addiction_train <- training(addiction_split)
+addiction_test  <- testing(addiction_split)
+
+```
+
+For this project, an 80/20 split was used. This means that 80% of the observations are used to train the models and 20% are held out as a test set. Using a larger training set allows the models to learn patterns more effectively, while still leaving enough data to evaluate how well the final model generalizes.
+
+The split is stratified on the response variable Addicted_Score. Stratification ensures that the distribution of addiction severity remains similar in both the training and testing sets, which helps maintain consistency between the datasets.
+
+Before continuing, it is useful to verify that the data split correctly.
+
+```{r}
+nrow(addiction_train) / nrow(data)
+nrow(addiction_test) / nrow(data)
+```
+
+The results confirm that approximately 80% of the data were assigned to the training set and 20% to the testing set, indicating that the data split was performed correctly.
+
+## Recipe Creation
+
+Throughout the analysis, the same predictors, conditions, and outcome are used across most models. For this reason, a single preprocessing recipe was created that can be applied consistently across all modeling workflows. Using one shared recipe ensures that each model is trained on the same processed version of the data, allowing a fair comparison of predictive performance.
+
+The response variable in this analysis is Addicted_Score, which represents the severity of social media addiction. All other variables in the dataset are treated as potential predictors, including demographic variables (such as age, gender, academic level, and country), behavioral variables (such as average daily usage hours and most used platform), and well-being indicators (such as sleep hours and mental health score).
+
+The preprocessing recipe performs several important transformations before modeling.
+
+First, the categorical variables Most_Used_Platform and Country contain many unique categories. Rare categories that appear in fewer than 5% of the observations are grouped into an “Other” category using step_other(). This reduces sparsity and helps prevent the creation of an excessive number of dummy variables.
+
+Next, all categorical predictors are converted into dummy variables using step_dummy(). Regression-based models require numeric inputs, so this transformation converts each category into a binary indicator variable that the models can use for prediction.
+
+Finally, all numeric predictors are normalized using step_normalize(). This centers each numeric variable at zero and scales it to have unit variance. Normalization is particularly important for models such as K-nearest neighbors and regularized regression, which are sensitive to differences in variable scale.
+
+The resulting recipe creates a consistent and properly formatted dataset that can be used across all modeling approaches.
+```{r}
+addiction_recipe <- recipe(Addicted_Score ~ ., data = addiction_train) %>%
+  step_other(Most_Used_Platform, threshold = 0.05) %>%  
+  step_other(Country, threshold = 0.05) %>%              
+  step_dummy(all_nominal_predictors()) %>%
+  step_normalize(all_numeric_predictors())
+
+```
+
+
+**K-Cross Validation Setup**
+
+Before fitting and comparing models, cross validation is used to estimate how well each model is likely to perform on new data. In this project, 10-fold cross validation is applied to the training dataset.
+
+This means that the training data are randomly divided into 10 folds of approximately equal size. For each fold, the model is trained on the remaining 9 folds and evaluated on the held-out fold. This process repeats until each fold has served once as the validation set. As a result, every observation in the training data is used for both training and validation across the resampling procedure.
+
+After the model has been fit across all folds, the prediction error from each fold is recorded and the average RMSE across the 10 folds is used as the estimate of model performance.
+
+Using k-fold cross validation provides a more reliable estimate of predictive performance than fitting and evaluating a model on a single dataset split. By averaging performance across multiple validation folds, the estimate of model accuracy becomes more stable and less sensitive to the observations included in any single training set.
+
+The folds are stratified on the outcome variable Addicted_Score, which ensures that the distribution of addiction severity is similar across all folds. Stratification helps prevent situations where certain folds contain unusually high or low addiction scores, which could bias the model evaluation.
+
+```{r}
+set.seed(123)
+
+addiction_folds <- vfold_cv(
+  addiction_train,
+  v = 10,
+  strata = Addicted_Score
+)
+
+```
+
+
+## Model Specifications
+
+It is now time to build and compare the predictive models! Because the response variable Addicted_Score is continuous, all models are formulated as regression models. Model performance will be evaluated using Root Mean Squared Error (RMSE).
+
+RMSE measures the average distance between the predicted values produced by the model and the true observed values. Because RMSE represents prediction error measured in the same units as the response variable, it provides a clear measure of model accuracy. A lower RMSE indicates better predictive performance, meaning that the model’s predictions are closer to the true addiction scores.
+
+Several models are included in this analysis in order to compare different types of relationships between predictors and addiction severity. A baseline linear regression model is used as a reference point. Regularized regression models (Ridge and Lasso) are included to determine whether coefficient shrinkage could improve generalization by reducing overfitting.
+
+Additional models are also considered to allow for more flexible relationships between predictors and the response variable. K-Nearest Neighbors allows predictions to be based on similar observations in the feature space, while a pruned regression tree partitions the predictor space using decision rules that can naturally capture nonlinear relationships and interactions.
+
+All models are implemented using the tidymodels framework, which ensures that the same preprocessing recipe and cross-validation folds are applied consistently across models.
+
+```{r}
+lm_spec <- linear_reg() %>%
+  set_engine("lm")
+
+ridge_spec <- linear_reg(penalty = tune(), mixture = 0) %>%
+  set_engine("glmnet")
+
+lasso_spec <- linear_reg(penalty = tune(), mixture = 1) %>%
+  set_engine("glmnet")
+
+knn_spec <- nearest_neighbor(
+  neighbors = tune(),
+  weight_func = "rectangular",
+  dist_power = 2
+) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+tree_spec <- decision_tree(
+  cost_complexity = tune(),
+  tree_depth = tune(),
+  min_n = tune()
+) %>%
+  set_engine("rpart") %>%
+  set_mode("regression")
+
+
+```
+
+Each model is combined with the preprocessing recipe using a workflow. Workflows ensure that the same preprocessing steps are applied consistently whenever a model is trained or evaluated.
+
+```{r}
+lm_workflow <- workflow() %>%
+  add_recipe(addiction_recipe) %>%
+  add_model(lm_spec)
+
+ridge_workflow <- workflow() %>%
+  add_recipe(addiction_recipe) %>%
+  add_model(ridge_spec)
+
+lasso_workflow <- workflow() %>%
+  add_recipe(addiction_recipe) %>%
+  add_model(lasso_spec)
+
+knn_workflow <- workflow() %>%
+  add_recipe(addiction_recipe) %>%
+  add_model(knn_spec)
+
+tree_workflow <- workflow() %>%
+  add_recipe(addiction_recipe) %>%
+  add_model(tree_spec)
+
+```
+
+## Interaction Model
+
+In addition to the baseline linear model, I created a second linear model including an interaction term. This model allows the effect of average daily usage hours on addiction severity to vary depending on the mental health score.
+
+Including interaction terms allows the model to capture situations where the influence of one predictor depends on the level of another predictor.
+
+```{r}
+
+interaction_recipe <- recipe(Addicted_Score ~ ., data = addiction_train) %>%
+  step_other(Most_Used_Platform, threshold = 0.05) %>%
+  step_other(Country, threshold = 0.05) %>%
+  step_interact(terms = ~ Avg_Daily_Usage_Hours:Mental_Health_Score) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_normalize(all_numeric_predictors())
+
+lm_interaction_workflow <- workflow() %>%
+  add_recipe(interaction_recipe) %>%
+  add_model(lm_spec)
+
+```
+
+
+
+**Model Training, Tuning, and Cross-Validation**
+
+
+## Fitting the Models
+
+Each model was fit using a similar workflow within the tidymodels framework. For each model, the following steps were applied:
+
+1. Specify the model and identify any parameters that require tuning.
+2. Combine the model with the preprocessing recipe using a workflow.
+3. Define a tuning grid specifying the range of values to explore for the model’s hyperparameters.
+4. Use 10-fold cross-validation on the training data to evaluate model performance.
+5. Collect the RMSE values across folds and identify the best-performing parameter configuration.
+
+This process allows for each model to be evaluated under the same resampling procedure, allowing their predictive performance to be compared fairly.
+
+### Linear Regression Model
+
+```{r}
+
+set.seed(123)
+
+lm_fit <- fit_resamples(
+  lm_workflow,
+  resamples = addiction_folds,
+metrics = metric_set(yardstick::rmse, yardstick::rsq)
+)
+
+lm_metrics <- collect_metrics(lm_fit)
+lm_metrics
+
+
+```
+
+```{r}
+lm_rmse <- lm_metrics %>%
+  filter(.metric == "rmse") %>%
+  slice(1)
+
+lm_rmse
+```
+
+Linear regression serves as a baseline model, it assumes that the relationship between predictors and `Addicted_Score` is linear and additive. This model provides a useful benchmark for evaluating whether more flexible approaches meaningfully improve predictive accuracy.
+
+Using 10-fold cross-validation on the training set, the linear regression model achieved an average RMSE of approximately **0.31**.
+
+This relatively low RMSE indicates strong predictive performance. Because linear regression is highly interpretable, it is an attractive candidate if more complex models do not significantly improve accuracy.
+
+### Linear Regression with Interaction
+```{r}
+set.seed(123)
+
+lm_interaction_fit <- fit_resamples(
+  lm_interaction_workflow,
+  resamples = addiction_folds,
+  metrics = metric_set(yardstick::rmse, rsq)
+)
+
+lm_interaction_metrics <- collect_metrics(lm_interaction_fit)
+
+lm_interaction_rmse <- lm_interaction_metrics %>%
+  filter(.metric == "rmse") %>%
+  slice(1)
+
+lm_interaction_rmse
+```
+
+Including an interaction between average daily usage and mental health slightly reduced prediction error, suggesting conditional effects between behavioral intensity and psychological well-being.
+
+
+### K-Nearest Neighbors (KNN)
+```{r}
+
+knn_grid <- tibble(neighbors = seq(5, 50, by = 5))
+
+knn_tuned <- tune_grid(
+  knn_workflow,
+  resamples = addiction_folds,
+  grid = knn_grid,
+  metrics = metric_set(yardstick::rmse)
+)
+
+knn_rmse <- collect_metrics(knn_tuned) %>%
+  filter(.metric == "rmse") %>%
+  arrange(mean) %>%
+  slice(1)
+
+knn_rmse
+
+
+```
+K-Nearest Neighbors regression was included as a flexible, non-parametric alternative. Unlike linear regression, KNN does not assume a specific functional form. Instead, it predicts addiction score based on the average of nearby observations in predictor space. The number of neighbors was tuned from 5 to 50 in increments of 5. Smaller values allow the model to capture more detailed patterns in the data, while larger values produce smoother predictions. This range was chosen to explore both flexible and more stable neighborhood sizes while keeping the tuning process computationally manageable.
+
+The number of neighbors was tuned using cross-validation. The best-performing KNN model achieved an RMSE of approximately **0.35**, which is higher than the baseline linear regression model.
+
+This suggests that local averaging does not improve predictive accuracy in this dataset. The weaker performance may indicate that the underlying structure is relatively smooth and linear rather than highly irregular or locally clustered.
+
+
+### Ridge Regression
+
+```{r}
+
+ridge_grid <- grid_regular(penalty(), levels = 30)
+
+set.seed(123)
+
+ridge_tuned <- tune_grid(
+  ridge_workflow,
+  resamples = addiction_folds,
+  grid = ridge_grid,
+  metrics = metric_set(yardstick::rmse)
+)
+
+ridge_metrics <- collect_metrics(ridge_tuned)
+ridge_metrics
+
+ridge_rmse <- ridge_metrics %>%
+  filter(.metric == "rmse") %>%
+  arrange(mean) %>%
+  slice(1)
+
+ridge_rmse
+
+
+```
+
+Ridge regression applies an L2 penalty to shrink coefficient estimates toward zero. This approach can improve generalization when predictors are correlated or when there are many dummy variables after encoding categorical features. The ridge penalty parameter was tuned using a grid with 30 values. The penalty controls how strongly the model shrinks the regression coefficients toward zero. Exploring a range of penalty values allows cross-validation to determine whether stronger or weaker regularization improves predictive performance.
+
+After tuning the penalty parameter using cross-validation, ridge regression achieved an RMSE of approximately **0.317**, nearly identical to the baseline linear regression model.
+
+The optimal penalty value was very small, indicating that only minimal shrinkage was applied. This suggests that multicollinearity among predictors is not severely affecting the model, and that the baseline linear regression already captures the main signal in the data.
+
+### Lasso Regression
+
+```{r}
+
+lasso_grid <- grid_regular(penalty(), levels = 30)
+
+set.seed(123)
+
+lasso_tuned <- tune_grid(
+  lasso_workflow,
+  resamples = addiction_folds,
+  grid = lasso_grid,
+  metrics = metric_set(yardstick::rmse)
+)
+
+lasso_metrics <- collect_metrics(lasso_tuned)
+lasso_metrics
+
+lasso_rmse <- lasso_metrics %>%
+  filter(.metric == "rmse") %>%
+  arrange(mean) %>%
+  slice(1)
+
+lasso_rmse
+
+```
+The lasso penalty parameter was also tuned using a grid with 30 values. The penalty controls the amount of shrinkage applied to the coefficients. Larger penalties can shrink some coefficients to zero, effectively removing less important predictors, while smaller penalties behave more like standard linear regression.
+
+Cross-validation selected a non-zero penalty value, indicating that some shrinkage occurred. The best lasso model achieved an RMSE of approximately **0.313**, very similar to both ridge and standard linear regression.
+
+While lasso improves interpretability through variable selection, it did not meaningfully improve predictive accuracy over simpler linear approaches.
+
+
+
+### Pruned Regression Tree
+
+```{r}
+
+tree_grid <- grid_regular(
+  cost_complexity(),
+  tree_depth(),
+  min_n(),
+  levels = 5
+)
+
+set.seed(123)
+
+tree_tuned <- tune_grid(
+  tree_workflow,
+  resamples = addiction_folds,
+  grid = tree_grid,
+  metrics = metric_set(yardstick::rmse)
+)
+
+tree_metrics <- collect_metrics(tree_tuned)
+tree_metrics
+
+tree_rmse <- tree_metrics %>%
+  filter(.metric == "rmse") %>%
+  arrange(mean) %>%
+  slice(1)
+
+tree_rmse
+```
+
+For the regression tree, three hyperparameters were tuned: tree depth, minimum observations per node, and cost complexity. These parameters control how complex the tree can become. Exploring several values allows cross-validation to find a balance between capturing patterns in the data and preventing overfitting. A grid with five levels for each parameter was used to explore a range of simpler to more complex tree structures while keeping the tuning process computationally practical.
+
+After tuning tree depth, minimum node size, and cost complexity using cross-validation, the best-performing regression tree achieved an average RMSE of **0.21**, substantially lower than the linear regression model.
+
+This suggests that the relationship between predictors and addiction severity is not purely linear, rather, threshold effects and interactions may play an important role in predicting addiction scores.
+
+```{r}
+library(rpart.plot)
+collect_metrics(tree_tuned) %>%
+  filter(.metric == "rmse") %>%
+  ggplot(aes(x = cost_complexity, y = mean)) +
+  geom_point()
+```
+
+```{r}
+autoplot(tree_tuned)
+```
+Cross-validation revealed a stable region of low RMSE for trees with depth between 8 and 15 and moderate cost-complexity pruning. Performance did not appear highly sensitive within this region, suggesting that the model is strong rather than overly fragile.
+
+
+## Model Comparison
+
+Now that each model has been fit and evaluated using cross-validation, we can compare their performance. The table below summarizes the cross-validated RMSE for all candidate models.
+
+```{r}
+model_comparison <- tibble(
+  Model = c(
+    "Linear Regression",
+    "K-Nearest Neighbors",
+    "Ridge Regression",
+    "Lasso Regression",
+    "Regression Tree",
+    "linear Interaction"
+  ),
+  
+  RMSE = c(
+    lm_rmse$mean,
+    knn_rmse$mean,
+    ridge_rmse$mean,
+    lasso_rmse$mean,
+    tree_rmse$mean,
+    lm_interaction_rmse$mean
+  )
+)
+
+model_comparison <- model_comparison |> arrange(RMSE)
+
+model_comparison
+
+```
+
+From the table above, the regression tree achieved the lowest average RMSE, approximately 0.21, while the linear regression models produced RMSE values closer to 0.30. 
+
+At first glance, this suggests that the regression tree may provide the best predictive performance. However, because this is a significant difference, examining model stability across cross-validation folds is important before selecting a final model.
+
+Here is a visualization of these results.
+
+```{r}
+library(ggplot2)
+library(wesanderson)
+
+ggplot(model_comparison, aes(x = reorder(Model, RMSE), y = RMSE, fill = RMSE)) +
+  geom_col(width = 0.7) +
+  coord_flip() +
+  scale_fill_gradientn(colors = wes_palette("GrandBudapest2")) +
+  labs(
+    title = "Cross-Validated RMSE Comparison Across Models",
+    x = "Model",
+    y = "RMSE"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold", size = 14)
+  )
+```
+
+
+## Performance Across Cross-Validation Folds
+
+To further evaluate model stability, the distribution of RMSE values across folds was compared.
+
+```{r}
+tree_fold_rmse <- collect_metrics(tree_tuned, summarize = FALSE) %>%
+  filter(.metric == "rmse") %>%
+  select(id, .estimate) %>%
+  mutate(Model = "Regression Tree")
+
+lm_fold_rmse <- collect_metrics(lm_interaction_fit , summarize = FALSE) %>%
+  filter(.metric == "rmse") %>%
+  select(id, .estimate) %>%
+  mutate(Model = "Linear Interaction")
+
+fold_rmse_compare <- bind_rows(tree_fold_rmse, lm_fold_rmse)
+
+ggplot(fold_rmse_compare, aes(x = Model, y = .estimate, fill = Model)) +
+  geom_boxplot(alpha = 0.8) +
+  scale_fill_manual(values = wes_palette("GrandBudapest2", 2)) +
+  labs(
+    title = "Cross-Validation RMSE Comparison",
+    x = "Model",
+    y = "RMSE"
+  ) +
+  theme(legend.position = "none")
+```
+
+The fold-level comparison reveals an important difference between models. Although the regression tree achieved the lowest mean RMSE, its error varied substantially across the different cross-validation folds. This indicates that the model’s performance is sensitive to the specific training data used in each split.
+
+In contrast, the linear Interaction model produced slightly higher RMSE values but demonstrated much more consistent performance across folds.
+
+A similar comparison was conducted between the linear interaction model and the lasso model.
+
+```{r}
+interaction_fold_rmse <- collect_metrics(lm_interaction_fit, summarize = FALSE) %>%
+  filter(.metric == "rmse") %>%
+  select(id, .estimate) %>%
+  mutate(Model = "Linear + Interaction")
+
+lasso_fold_rmse <- collect_metrics(lasso_tuned, summarize = FALSE) %>%
+  filter(.metric == "rmse") %>%
+  select(id, .estimate) %>%
+  mutate(Model = "Lasso")
+
+fold_compare <- bind_rows(interaction_fold_rmse, lasso_fold_rmse)
+
+ggplot(fold_compare, aes(x = Model, y = .estimate, fill = Model)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = wes_palette("GrandBudapest2", 2)) +
+  labs(
+    title = "Fold-Level RMSE Comparison",
+    x = "Model",
+    y = "RMSE"
+  ) +
+  theme(legend.position = "none")
+```
+
+Among the linear approaches, the linear regression model including an interaction term produced slightly lower median RMSE and tighter variability than the regularized models.
+
+Because the goal of this analysis is to build a model that is both accurate and stable, the interaction model was selected as the final candidate for evaluation on the test dataset.
+
+## Final Model Selection
+
+Based on the cross-validated results, several models achieved similar predictive performance. Although the regression tree produced the lowest average RMSE, its fold-level results showed significant variability, indicating a higher risk of overfitting.
+
+The linear regression models produced slightly higher RMSE values but were considerably more stable across resamples.
+
+Ultimately, the linear regression model with interaction terms was selected as the final model as it balances stability across folds and interpretability.
+
+### Evaluate on Full Training Set
+
+The selected model was then refit using the entire training dataset. This step allows the model to learn from all available training observations before evaluating its performance on the test data.
+
+```{r}
+final_wf <- lm_interaction_workflow
+
+final_fit_train <- final_wf %>%
+  fit(data = addiction_train)
+
+train_preds <- predict(final_fit_train, addiction_train) %>%
+  bind_cols(addiction_train %>% select(Addicted_Score))
+
+train_rmse <- yardstick::rmse(train_preds, truth = Addicted_Score, estimate = .pred)
+train_rmse
+
+train_rsq <- yardstick::rsq(train_preds, truth = Addicted_Score, estimate = .pred)
+train_rsq
+```
+
+The final model was refit using the full training dataset in order to estimate in-sample performance prior to evaluating the test set. The training RMSE is approximately 0.30, which is consistent with the cross-validated RMSE observed during model selection. The training R² is relatively high because the model is evaluated on the data used for fitting. Cross-validation remains the primary estimate of predictive performance prior to evaluating the test data.
+
+### Variable Importance
+
+It is also useful to examine which predictors contribute most strongly to the model’s predictions.
+
+```{r}
+library(vip)
+vip(final_fit_train$fit$fit$fit, num_features = 10) +
+  aes(fill = Importance) +
+  geom_col(show.legend = FALSE) +
+  scale_fill_gradientn(colors = wes_palette("GrandBudapest2")) +
+  labs(
+    title = "Most Important Predictors of Social Media Addiction",
+    x = "Importance",
+    y = "Predictor"
+  )
+
+
+```
+The variable importance plot highlights the predictors that most strongly influence the predicted addiction score. Variables related to mental health, social conflicts, academic impact, sleep habits, and daily usage hours appear to contribute the most to the model’s predictions.
+
+This suggests that both psychological well-being and behavioral patterns play a central role in explaining variation in social media addiction scores.
+
+### Evaluate on Test Set
+
+After training the final model, it was evaluated on the test dataset, which contains observations that were not used during model training.
+
+```{r}
+test_predictions <- predict(final_fit_train, addiction_test) %>%
+  bind_cols(addiction_test %>% select(Addicted_Score))
+
+test_rmse <- yardstick::rmse(test_predictions,
+                             truth = Addicted_Score,
+                             estimate = .pred)
+
+test_rsq <- yardstick::rsq(test_predictions,
+                           truth = Addicted_Score,
+                           estimate = .pred)
+
+test_rmse
+test_rsq
+```
+
+Model performance on the test set was measured using RMSE and R squared.
+
+Now, I want to look at a plot of the predicted values versus the actual values.
+
+```{r}
+library(ggplot2)
+library(wesanderson)
+
+ggplot(test_predictions, aes(x = .pred, y = Addicted_Score)) +
+  geom_point(alpha = 0.5, color = wes_palette("GrandBudapest2")[3]) +
+  geom_abline(linetype = "dashed", color = "black") +
+  coord_equal() +
+  labs(
+    title = "Predicted vs Actual Addiction Scores",
+    x = "Predicted Addiction Score",
+    y = "Actual Addiction Score"
+  ) +
+  theme_minimal()
+```
+
+The figure above compares the predicted addiction scores to the actual observed values in the test dataset. If the model predicted every observation perfectly, all points would lie directly on the dashed diagonal line. In this plot, most points fall close to the line, indicating that the predicted values closely match the true addiction scores. Although there is some variation present, the overall pattern shows that the model performs well and captures the main relationship between the predictors and addiction severity.
+
+### Final Model Performance
+
+The final model was evaluated on the test set to assess its predictive performance on new data. The model achieved a test RMSE of approximately **0.293** and an R² of approximately **0.965**, indicating that the model explains a large proportion of the variability in addiction scores.
+
+The similarity between the training RMSE and test RMSE suggests that the model generalizes well and is not substantially overfitting the training data. This consistency indicates that the relationships learned during training are stable and continue to perform well when applied to unseen observations.
+
+Overall, the linear regression model with interaction terms provides a strong balance between predictive performance, stability across cross-validation folds, and interpretability. The inclusion of interaction effects allows the model to capture more complex relationships between predictors while maintaining the transparency of a linear modeling framework.
+
+
+## Conclusion
+
+This project developed a predictive model for social media addiction scores using demographic, behavioral, and psychological variables. Several modeling approaches were evaluated, including linear regression, regularized regression methods, K-nearest neighbors, and pruned regression trees. Model performance was assessed using cross-validation and compared using the RMSE metric.
+
+Although the regression tree achieved the lowest average RMSE during cross-validation, further analysis showed that its performance varied substantially across folds. This variability suggested that the tree model was sensitive to the specific training data and therefore at greater risk of overfitting. In contrast, the linear regression models produced slightly higher RMSE values but demonstrated much more stable performance across resamples. Therefore, the linear regression model including interaction terms was selected as the final model.
+
+When evaluated on the test dataset, the final model achieved a test RMSE of approximately 0.293 and an r squared of approximately 0.965. The similarity between training and testing error indicates that the model generalizes well to new observations and is not strongly overfitting the training data. Overall, the model provides a reliable framework for predicting addiction severity based on behavioral and well-being variables.
+
+Examining the model coefficients and the variable importance plot also provides insight into which factors are most strongly associated with social media addiction. Variables related to mental health, social conflicts, academic impact, sleep patterns, and daily usage hours were among the most influential predictors. These findings suggest that both psychological well-being and behavioral habits play important roles in shaping patterns of social media addiction.
+
+Among the models evaluated, K-Nearest Neighbors performed the worst which was not entirely surprising. KNN tends to perform poorly in higher-dimensional datasets because distances between observations become less meaningful as the number of predictors increases. With many predictors and dummy variables included in the model, it becomes more difficult for KNN to identify truly similar observations.
+
+While the results of this analysis are encouraging, there are several opportunities for improvement. The dataset used in this project is based on survey responses and therefore may contain measurement error or reporting bias. Additionally, the dataset includes a limited number of predictors related to individual behavior and well-being. Other variables such as personality traits, time spent on specific platforms, or online interaction patterns, could potentially improve the model’s predictive accuracy.
+
+Future work could also explore more advanced nonlinear models, such as random forests or gradient boosting methods, which may be able to capture complex interactions between predictors. Additionally, applying the analysis to a larger and more diverse dataset could help determine whether the patterns identified here generalize across different populations.
+
+Overall, this project provided an opportunity to apply machine learning techniques to a socially relevant topic. By comparing multiple modeling approaches and carefully evaluating their predictive performance, the analysis demonstrates how statistical modeling can be used to better understand patterns of social media use and their relationship to addiction severity.
+
+### Sources
+
+The data used in this project was taken from the Kaggle dataset “Students' Social Media Addiction” The dataset contains survey responses from students regarding their social media usage patterns, mental health, and lifestyle characteristics. 
+
+Kaggle. Social Media Addiction vs Relationships Dataset. Retrieved from:
+https://www.kaggle.com/datasets/adilshamim8/social-media-addiction-vs-relationships
+
+General information about social media usage and its potential effects on sleep, academic performance, and mental health was referenced from publicly available research and reports discussing social media behavior among young adults.
+
+All statistical modeling, preprocessing, and machine learning analysis in this project were conducted using the R programming language and the tidymodels framework.

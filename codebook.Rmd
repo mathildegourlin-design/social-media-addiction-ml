@@ -1,0 +1,117 @@
+---
+title: "Codebook: Social Media Addiction Dataset"
+author: "Mathilde Gourlin"
+date: "2026-01-26"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+PSTAT 131 
+
+
+
+**Student_ID**
+
+- Description: Unique identifier assigned to each respondent
+
+- Type: Numeric (integer)
+
+- Role: Identifier (not used as a predictor in modeling)
+
+**Age**
+
+- Description: Age of the respondent
+
+- Type: Numeric (integer)
+
+- Units: Years
+
+**Gender**
+
+- Description: Self-identified gender of the respondent
+
+- Type: Categorical
+
+**Academic_Level**
+
+- Description: Highest academic level completed or current level of study
+
+- Type: Categorical
+
+- Examples: High School, Undergraduate, Graduate
+
+**Country**
+
+- Description: Country of residence of the respondent
+
+- Type: Categorical
+
+- Notes: Rare categories were grouped into an “Other” category using step_other() before being converted into dummy variables.
+
+**Avg_Daily_Usage_Hours**
+
+- Description: Average number of hours per day spent on social media
+
+- Type: Numeric (continuous)
+
+- Units: Hours per day
+
+**Most_Used_Platform**
+
+- Description: Social media platform used most frequently by the respondent
+
+- Type: Categorical
+
+- Notes: Rare platforms were grouped into an “Other” category during preprocessing
+
+**Affects_Academic_Performance**
+
+- Description: Indicator of whether social media use negatively affects academic performance
+
+- Type: Categorical (Yes/No)
+
+**Sleep_Hours_Per_Night**
+
+- Description: Average number of hours slept per night
+
+- Type: Numeric (continuous)
+
+- Units: Hours
+
+**Mental_Health_Score**
+
+- Description: Self-reported mental health score
+
+- Type: Numeric (integer)
+
+- Scale: Higher values indicate better mental health
+
+**Relationship_Status**
+
+- Description: Self-reported relationship status of the respondent
+
+- Type: Categorical
+
+- Examples: Single, In Relationship, Complicated
+
+**Conflicts_Over_Social_Media**
+
+- Description: Frequency of conflicts caused by social media use
+
+- Type: Numeric (ordinal)
+
+- Scale: Higher values indicate more frequent conflicts
+
+**Addicted_Score**
+
+- Description: Self-reported social media addiction severity score
+
+- Type: Numeric (integer)
+
+- Scale: 1 (low addiction) to 10 (high addiction)
+
+- Role: Response variable
